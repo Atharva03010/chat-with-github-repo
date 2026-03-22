@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from services.github_ingestor import clone_and_parse_repo
 from services.vector_store import vector_store_docs
@@ -22,9 +23,9 @@ class ChatRequest(BaseModel):
 # --- API Endpoints ---
 
 @app.get("/")
-async def health_check():
-    """Simple health check endpoint."""
-    return {"status": "active", "message": "Chat with Repo API is running. Visit /docs for the UI."}
+async def serve_frontend():
+    """Serve the frontend HTML file."""
+    return FileResponse("static/index.html")
 
 @app.post("/ingest")
 async def ingest_repo(request: RepoRequest):

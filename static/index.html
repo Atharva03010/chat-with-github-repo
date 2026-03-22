@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat with Repo</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f4f9; color: #333; margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .container { background: white; width: 100%; max-width: 800px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); padding: 20px; display: flex; flex-direction: column; height: 90vh; }
+        h1 { text-align: center; margin-top: 0; color: #2c3e50; }
+        .setup-section { display: flex; gap: 10px; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #eee; }
+        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; }
+        button { padding: 12px 20px; background-color: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; transition: background 0.3s; }
+        button:hover { background-color: #2980b9; }
+        button:disabled { background-color: #95a5a6; cursor: not-allowed; }
+        .chat-box { flex: 1; overflow-y: auto; border: 1px solid #eee; border-radius: 5px; padding: 15px; background: #fafafa; margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .message { padding: 12px 16px; border-radius: 8px; max-width: 80%; line-height: 1.5; }
+        .user-msg { background-color: #3498db; color: white; align-self: flex-end; border-bottom-right-radius: 0; }
+        .bot-msg { background-color: #ecf0f1; color: #2c3e50; align-self: flex-start; border-bottom-left-radius: 0; font-family: monospace; white-space: pre-wrap;}
+        .sources { font-size: 12px; color: #7f8c8d; margin-top: 5px; border-top: 1px solid #bdc3c7; padding-top: 5px;}
+        .input-section { display: flex; gap: 10px; }
+        .loader { display: none; font-size: 14px; color: #7f8c8d; text-align: center; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1> Chat with your Repo</h1>
+    
+    <div class="setup-section">
+        <input type="text" id="repo-url" placeholder="Paste GitHub URL here (e.g., https://github.com/user/repo)">
+        <button id="ingest-btn" onclick="ingestRepo()">Load Repo</button>
+    </div>
+    <div id="status-text" class="loader">Processing repository... this might take a minute.</div>
+
+    <div class="chat-box" id="chat-box">
+        <div class="message bot-msg">Hello! Paste a GitHub URL above to get started.</div>
+    </div>
+    
+    <div class="input-section">
+        <input type="text" id="chat-input" placeholder="Ask a question about the code..." disabled>
+        <button id="send-btn" onclick="sendMessage()" disabled>Send</button>
+    </div>
+</div>
+
+<script>
+    async function ingestRepo() {
+        const urlInput = document.getElementById('repo-url').value;
+        const statusText = document.getElementById('status-text');
+        const ingestBtn = document.getElementById('ingest-btn');
+        const chatInput = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('send-btn');
+
+        if (!urlInput) return alert("Please enter a URL");
+
+        statusText.style.display = 'block';
+        ingestBtn.disabled = true;
+
+        try {
+            const response = await fetch('/ingest', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ repo_url: urlInput })
+            });
+            const data = await response.json();
+
+            if (response.ok) {
+                statusText.innerText = `✅ Success! Ingested ${data.files_read} files. You can now ask questions.`;
+                statusText.style.color = "#27ae60";
+                chatInput.disabled = false;
+                sendBtn.disabled = false;
+            } else {
+                throw new Error(data.detail || "Failed to ingest");
+            }
+        } catch (error) {
+            statusText.innerText = `❌ Error: ${error.message}`;
+            statusText.style.color = "#c0392b";
+        } finally {
+            ingestBtn.disabled = false;
+        }
+    }
+
+    async function sendMessage() {
+        const inputField = document.getElementById('chat-input');
+        const message = inputField.value.trim();
+        if (!message) return;
+
+        appendMessage(message, 'user');
+        inputField.value = '';
+        
+        const sendBtn = document.getElementById('send-btn');
+        sendBtn.disabled = true;
+        sendBtn.innerText = '...';
+
+        try {
+            const response = await fetch('/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: message })
+            });
+            const data = await response.json();
+
+            if (response.ok) {
+                let botReply = data.answer;
+                if (data.referenced_files && data.referenced_files.length > 0) {
+                    botReply += `<div class="sources"><strong>Sources:</strong><br>- ${data.referenced_files.join('<br>- ')}</div>`;
+                }
+                appendMessage(botReply, 'bot', true);
+            } else {
+                appendMessage("❌ Error: " + (data.detail || "Could not fetch answer"), 'bot');
+            }
+        } catch (error) {
+            appendMessage("❌ Connection error.", 'bot');
+        } finally {
+            sendBtn.disabled = false;
+            sendBtn.innerText = 'Send';
+        }
+    }
+
+    function appendMessage(text, sender, isHTML=false) {
+        const chatBox = document.getElementById('chat-box');
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `message ${sender}-msg`;
+        if (isHTML) {
+            msgDiv.innerHTML = text;
+        } else {
+            msgDiv.innerText = text;
+        }
+        chatBox.appendChild(msgDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    // Allow pressing "Enter" to send message
+    document.getElementById("chat-input").addEventListener("keypress", function(event) {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            document.getElementById("send-btn").click();
+        }
+    });
+</script>
+</body>
+</html>
