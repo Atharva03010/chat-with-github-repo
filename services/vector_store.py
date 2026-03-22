@@ -31,6 +31,16 @@ def vector_store_docs(raw_docs: list[dict], repo_url: str):
     # Initialize the Embedding Model
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
+    db = Chroma(persist_directory=CHROMA_DB_DIR, embedding_function=embeddings)
+    
+    # 2. Tell Chroma to delete the active collection (wipes the data, keeps the files intact)
+    try:
+        db.delete_collection()
+        print("Successfully cleared old repository data.")
+    except Exception as e:
+        # If the database is completely empty/new, this safely catches the error
+        pass
+
     # Store in ChromaDB
     vector_store = Chroma.from_documents(
         documents=chunked_docs,

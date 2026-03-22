@@ -3,7 +3,7 @@ import shutil
 import tempfile
 from git import Repo
 
-SUPPORTED_EXTENSIONS = {'.py', '.java', '.cpp', '.c', '.js', '.ts', '.md', '.txt', '.html', '.css'}
+SUPPORTED_EXTENSIONS = {'.py', '.java', '.cpp', '.c', '.js', '.ts', '.md', '.txt', '.html', '.css','.sql'}
 
 # folders that are massive and irrelevant to the core logic
 IGNORED_DIRS = {'.git', 'node_modules', '__pycache__', 'venv', 'env', 'build', 'dist', 'target'}
