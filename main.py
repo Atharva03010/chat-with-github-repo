@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from services.github_ingestor import clone_and_parse_repo
+from services.vector_store import vector_store_docs
 
 # Initialize the FastAPI application
 app = FastAPI(
@@ -40,11 +41,13 @@ async def ingest_repo(request: RepoRequest):
         if not documents:
             raise HTTPException(status_code=404, detail="No readable code files found in the repository.")
 
-        
+        total_chunks = vector_store_docs(documents, repo_url)
+
         return {
             "status": "success", 
             "message": f"Successfully cloned and parsed {len(documents)} files from {repo_url}.",
-            "sample_files": [doc['path'] for doc in documents[:5]] # Show the first 5 files as proof
+            "files_read": len(documents),
+            "vector_chunks_stored": total_chunks
         }
         
     except Exception as e:
