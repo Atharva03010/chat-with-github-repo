@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from services.github_ingestor import clone_and_parse_repo
 from services.vector_store import vector_store_docs
+from services.rag import get_answers
 
 # Initialize the FastAPI application
 app = FastAPI(
@@ -62,8 +63,18 @@ async def chat_with_repo(request: ChatRequest):
     
     if not user_query:
          raise HTTPException(status_code=400, detail="Query cannot be empty.")
-    
-    # Placeholder response
-    dummy_answer = f"This is a placeholder response for: '{user_query}'"
-    
-    return {"query": user_query, "answer": dummy_answer}
+  
+    try:
+        # Query the RAG pipeline
+        result = get_answers(user_query)
+        
+        return {
+            "query": user_query, 
+            "answer": result["answer"],
+            "referenced_files": list(set(result["sources"])) # Remove duplicates
+        }
+    except ValueError as ve:
+        # Catch the error if the database doesn't exist yet
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate answer: {str(e)}")
