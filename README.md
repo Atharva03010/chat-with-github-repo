@@ -41,18 +41,12 @@ A FastAPI-based application that allows you to ingest GitHub repositories and qu
    uvicorn main:app --reload
    ```
 
-2. **Access the API documentation**:
-   Open your browser and go to `http://127.0.0.1:8000/docs` for the interactive Swagger UI.
+2. **Open the web UI**:
+   - Visit `http://127.0.0.1:8000/` to load the `static/index.html` frontend.
+   - Enter a GitHub repository URL and click **Load Repo**.
+   - Ask questions via the chat input after ingestion is complete.
 
-### API Endpoints
 
-- **GET /**: Health check endpoint.
-- **POST /ingest**: Ingest a GitHub repository.
-  - Request body: `{"repo_url": "https://github.com/username/repo"}`
-  - Response: Confirmation of ingestion with file count and chunks stored.
-- **POST /chat**: Query the repository.
-  - Request body: `{"query": "What does this function do?"}`
-  - Response: AI-generated answer with referenced files.
 
 ## Requirements
 
